@@ -1,5 +1,5 @@
 import regex as re
-from collections import Counter
+from collections import Counter, defaultdict
 
 
 # Assignment handout p.9: Problem train_bpe function.
@@ -55,8 +55,8 @@ def train_bpe(
     # For non-ASCII text, "你好" -> b"\xe4\xbd\xa0\xe5\xa5\xbd" -> (b'\xe4', b'\xbd', b'\xa0', b'\xe5', b'\xa5', b'\xbd').
     raw_counts = Counter()
     for segment in train_segments:
-        words = re.findall(GPT2_PAT, segment)
-        for word in words:
+        for match in re.finditer(GPT2_PAT, segment):
+            word = match.group()
             word_bytes = word.encode("utf-8")
             key = tuple(bytes([b]) for b in word_bytes)
             raw_counts[key] += 1
@@ -67,12 +67,19 @@ def train_bpe(
     #     (b"x", b"y"): 7,
     # })
 
+    pair_counts = Counter()
+    pair_to_words = defaultdict(set)
+    for word, count in raw_counts.items():
+        for pair in word_bytes_to_pairs(word):
+            pair_counts[pair] += count
+            pair_to_words[pair].add(word)
+
     merges = []
     for _ in range(num_merges):
-        pair_counts = Counter()
-        for word, count in raw_counts.items():
-            for i in range(len(word) - 1):
-                pair_counts[(word[i], word[i + 1])] += count
+        # pair_counts = Counter()
+        # for word, count in raw_counts.items():
+        #     for pair in word_bytes_to_pairs(word):
+        #         pair_counts[pair] += count
 
         if not pair_counts:
             break
@@ -81,24 +88,62 @@ def train_bpe(
         merged_token = best_pair[0] + best_pair[1]
         vocab[len(vocab)] = merged_token
 
-        new_word_counts = Counter()
-        for old_word, count in raw_counts.items():
-            new_word = []
-            i = 0
-            while i < len(old_word):
-                if i + 1 < len(old_word) and old_word[i] == best_pair[0] and old_word[i + 1] == best_pair[1]:
-                    new_word.append(merged_token)
-                    i += 2
-                else:
-                    new_word.append(old_word[i])
-                    i += 1
-            new_word = tuple(new_word)
-            new_word_counts[new_word] += count
-        raw_counts = new_word_counts
+        affected_words = list(pair_to_words[best_pair])
+        for old_word in affected_words:
+            count = raw_counts[old_word]
+            # 重复 pair 会重复 remove，先统计 old_word 内部每个 pair 出现了几次
+            old_word_pair_counts = Counter(word_bytes_to_pairs(old_word)) # (a, a, a, a, a) -> {(a, a): 4}
+            for old_pair, pair_occurrences in old_word_pair_counts.items():
+                pair_counts[old_pair] -= count * pair_occurrences
+                if pair_counts[old_pair] == 0:
+                    del pair_counts[old_pair]
+                pair_to_words[old_pair].remove(old_word) # 该操作就只执行一次（因为 old_word_pair_counts 字典的 key 唯一）
+
+            new_word = merge_word(old_word, best_pair)
+            new_word_pair_counts = Counter(word_bytes_to_pairs(new_word))
+            for new_pair, pair_occurrences in new_word_pair_counts.items():
+                pair_counts[new_pair] += count * pair_occurrences
+                pair_to_words[new_pair].add(new_word)
+
+            # 这里应该累加而不是覆盖，例如{
+            #     (b"a", b"b"): 2,
+            #     (b"ab",): 3,
+            # } -> (b"ab",): 5（累加） 而不是 (b"ab",): 2（覆盖）
+            old_count = raw_counts.pop(old_word)
+            raw_counts[new_word] += old_count
+
+        # new_word_counts = Counter()
+        # for old_word, count in raw_counts.items():
+        #     new_word = merge_word(old_word, best_pair)
+        #     new_word_counts[new_word] += count
+        # raw_counts = new_word_counts
 
     return vocab, merges
 
 
+# Merge non-overlapping occurrences from left to right, e.g. (a,a,a,a,a) -> (aa,aa,a).
+def merge_word(
+    word: tuple[bytes, ...],
+    best_pair: tuple[bytes, bytes]
+) -> tuple[bytes, ...]:
+    merged_token = best_pair[0] + best_pair[1]
+    res = []
+    i = 0
+    while i < len(word):
+        if i + 1 < len(word) and word[i] == best_pair[0] and word[i + 1] == best_pair[1]:
+            res.append(merged_token)
+            i += 2
+        else:
+            res.append(word[i])
+            i += 1
+    return tuple(res)
 
 
-
+# Example: (b"a", b"b", b"c") -> [(b"a", b"b"), (b"b", b"c")]
+def word_bytes_to_pairs(
+    word_bytes: tuple[bytes, ...],
+) -> list[tuple[bytes, bytes]]:
+    res = []
+    for i in range(len(word_bytes) - 1):
+        res.append((word_bytes[i], word_bytes[i + 1]))
+    return res
