@@ -1,5 +1,43 @@
 import regex as re
 from collections import Counter, defaultdict
+from cs336_basics.pretokenization_example import find_chunk_boundaries
+from multiprocessing import Pool
+import os
+
+
+def pre_tokenize_chunk(file_path, start, end, special_tokens):
+    with open(file_path, "rb") as f:
+        f.seek(start)
+        chunk = f.read(end - start).decode("utf-8", errors="ignore")
+        # strip out all special tokens from corpus (or chunk, if using a parallel implementation).
+        if special_tokens:
+            # with careful use of re.escape since | may occur in the special tokens)
+            special_regex = "|".join(re.escape(t) for t in special_tokens)
+            train_segments = re.split(special_regex, chunk)
+        else:
+            train_segments = [chunk]
+
+        GPT2_PAT = (
+            r"""'(?:[sdmt]|ll|ve|re)"""  # English contractions: 's, 'd, 'm, 't, 'll, 've, 're.
+            r"""| ?\p{L}+"""  # Optional leading space followed by one or more Unicode letters.
+            r"""| ?\p{N}+"""  # Optional leading space followed by one or more Unicode numbers.
+            r"""| ?[^\s\p{L}\p{N}]+"""  # Optional leading space followed by symbols/punctuation.
+            r"""|\s+(?!\S)"""  # Whitespace run not followed by a non-whitespace character.
+            r"""|\s+"""  # Any other whitespace run.
+        )
+
+        # Example: "cat" -> b"cat" -> (b"c", b"a", b"t").
+        # For non-ASCII text, "你好" -> b"\xe4\xbd\xa0\xe5\xa5\xbd" -> (b'\xe4', b'\xbd', b'\xa0', b'\xe5', b'\xa5', b'\xbd').
+        raw_counts = Counter()
+        for segment in train_segments:
+            for match in re.finditer(GPT2_PAT, segment):
+                word = match.group()
+                word_bytes = word.encode("utf-8")
+                key = tuple(bytes([b]) for b in word_bytes)
+                raw_counts[key] += 1
+
+        return raw_counts
+
 
 
 # Assignment handout p.9: Problem train_bpe function.
@@ -31,35 +69,17 @@ def train_bpe(
         vocab[len(vocab)] = special_token.encode("utf-8")
 
     num_merges = vocab_size - len(vocab)
-    with open(input_path, "r", encoding="utf-8") as f:
-        text = f.read()
-
-    # strip out all special tokens from corpus (or chunk, if using a parallel implementation).
-    if special_tokens:
-        # with careful use of re.escape since | may occur in the special tokens)
-        special_regex = "|".join(re.escape(t) for t in special_tokens)
-        train_segments = re.split(special_regex, text)
-    else :
-        train_segments = [text]
-
-    GPT2_PAT = (
-        r"""'(?:[sdmt]|ll|ve|re)"""  # English contractions: 's, 'd, 'm, 't, 'll, 've, 're.
-        r"""| ?\p{L}+"""  # Optional leading space followed by one or more Unicode letters.
-        r"""| ?\p{N}+"""  # Optional leading space followed by one or more Unicode numbers.
-        r"""| ?[^\s\p{L}\p{N}]+"""  # Optional leading space followed by symbols/punctuation.
-        r"""|\s+(?!\S)"""  # Whitespace run not followed by a non-whitespace character.
-        r"""|\s+"""  # Any other whitespace run.
-    )
-
-    # Example: "cat" -> b"cat" -> (b"c", b"a", b"t").
-    # For non-ASCII text, "你好" -> b"\xe4\xbd\xa0\xe5\xa5\xbd" -> (b'\xe4', b'\xbd', b'\xa0', b'\xe5', b'\xa5', b'\xbd').
     raw_counts = Counter()
-    for segment in train_segments:
-        for match in re.finditer(GPT2_PAT, segment):
-            word = match.group()
-            word_bytes = word.encode("utf-8")
-            key = tuple(bytes([b]) for b in word_bytes)
-            raw_counts[key] += 1
+    with open(input_path, "rb") as f:
+        num_processes = os.cpu_count()
+        boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
+        task_list = []
+        for start, end in zip(boundaries[:-1], boundaries[1:]):
+            task_list.append((input_path, start, end, special_tokens))
+        with Pool(num_processes) as pool:
+            counts_list = pool.starmap(pre_tokenize_chunk, task_list)
+        for counts in counts_list:
+            raw_counts.update(counts)
 
     # Example: raw_counts = Counter({
     #     (b"a", b"b", b"c"): 10,
