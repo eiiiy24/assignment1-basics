@@ -3,9 +3,11 @@ from collections import Counter, defaultdict
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 from multiprocessing import Pool
 import os
+from tqdm import tqdm
 
 
-def pre_tokenize_chunk(file_path, start, end, special_tokens):
+def pre_tokenize_chunk(args):
+    file_path, start, end, special_tokens = args
     with open(file_path, "rb") as f:
         f.seek(start)
         chunk = f.read(end - start).decode("utf-8", errors="ignore")
@@ -72,12 +74,14 @@ def train_bpe(
     raw_counts = Counter()
     with open(input_path, "rb") as f:
         num_processes = os.cpu_count()
+        # num_processes = 12
         boundaries = find_chunk_boundaries(f, num_processes, b"<|endoftext|>")
         task_list = []
         for start, end in zip(boundaries[:-1], boundaries[1:]):
             task_list.append((input_path, start, end, special_tokens))
         with Pool(num_processes) as pool:
-            counts_list = pool.starmap(pre_tokenize_chunk, task_list)
+            results = pool.imap_unordered(pre_tokenize_chunk, task_list)
+            counts_list = list(tqdm(results, total=len(task_list), desc="Pre-tokenizing"))
         for counts in counts_list:
             raw_counts.update(counts)
 
@@ -95,7 +99,7 @@ def train_bpe(
             pair_to_words[pair].add(word)
 
     merges = []
-    for _ in range(num_merges):
+    for _ in tqdm(range(num_merges), desc="BPE merges"):
         # pair_counts = Counter()
         # for word, count in raw_counts.items():
         #     for pair in word_bytes_to_pairs(word):
