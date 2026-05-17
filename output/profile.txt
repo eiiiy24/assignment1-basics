@@ -9,9 +9,9 @@ longest token id: 7160
 longest token byte length: 15
 longest token bytes: b' accomplishment'
 longest token decoded:  accomplishment
-
+// 以上未注释内存统计代码 uv run python scratch/train_bpe_tinystories.py
 ================================================================
-
+// 以下注释内存统计代码 v run python -m cProfile -s cumtime scratch/train_bpe_tinystories.py > output/profile.txt 2>&1
 Pre-tokenizing:   0%|          | 0/16 [00:00<?, ?it/s]
 Pre-tokenizing:   6%|▋         | 1/16 [04:26<1:06:34, 266.33s/it]
 Pre-tokenizing:  19%|█▉        | 3/16 [04:26<14:59, 69.19s/it]   
