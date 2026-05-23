@@ -1,6 +1,18 @@
 import torch
 
 def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+    r"""Numerically stable softmax along a given dimension.
+
+    .. math::
+        \text{softmax}(x_i) = \frac{e^{x_i - \max(x)}}{\sum_j e^{x_j - \max(x)}}
+
+    Args:
+        x: Input tensor of any shape.
+        dim: Dimension along which to normalize.
+
+    Returns:
+        Tensor of the same shape as ``x`` with values in [0, 1] summing to 1 along ``dim``.
+    """
     # res = torch.empty_like(x)                       # (..., d_i, ...)
     # x_max = x.max(dim=dim, keepdim=True)[0]          # (..., 1, ...) — 沿 dim 保留为 1
     # x -= x_max                                        # 数值稳定

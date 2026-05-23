@@ -5,6 +5,13 @@ from einops import rearrange, einsum
 from cs336_basics.rope import RotaryPositionalEmbedding
 
 class MultiHeadSelfAttention(torch.nn.Module):
+    r"""Causal multi-head self-attention with optional RoPE.
+
+    Projects input to Q, K, V via a single batched matrix multiply per projection,
+    splits heads, applies causal masking and optional rotary position embeddings,
+    then recombines and projects back via the output projection.
+    """
+
     def __init__(
         self,
         d_model: int, # Dimensionality of the Transformer block inputs

@@ -9,6 +9,17 @@ def scaled_dot_product_attention(
     v: torch.Tensor, # (batch_size, ..., m, d_v)
     mask: torch.Tensor| None=None # (batch_size, ..., n, m)
 ) -> torch.Tensor: # (batch_size, ..., n, d_v)
+    r"""Scaled dot-product attention: softmax(QK^T / sqrt(d_k) + mask) V.
+
+    Args:
+        q: Query tensor (..., n, d_k).
+        k: Key tensor (..., m, d_k).
+        v: Value tensor (..., m, d_v).
+        mask: Boolean mask (..., n, m). True = allow, False = block.
+
+    Returns:
+        Output tensor (..., n, d_v).
+    """
     d_k = q.size(-1)
     qk_scaled = einsum(q, k, "... n d_k, ... m d_k -> ... n m") / math.sqrt(d_k)
     if mask is not None:
