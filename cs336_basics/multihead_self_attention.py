@@ -27,10 +27,10 @@ class MultiHeadSelfAttention(torch.nn.Module):
         self.device = device
         self.dtype = dtype
         d_k = d_v = self.d_model // self.num_heads
-        self.Wq = Linear(self.d_model, self.num_heads * d_k)
-        self.Wk = Linear(self.d_model, self.num_heads * d_k)
-        self.Wv = Linear(self.d_model, self.num_heads * d_v)
-        self.Wo = Linear(self.num_heads * d_v, self.d_model)
+        self.Wq = Linear(self.d_model, self.num_heads * d_k, device=self.device, dtype=self.dtype)
+        self.Wk = Linear(self.d_model, self.num_heads * d_k, device=self.device, dtype=self.dtype)
+        self.Wv = Linear(self.d_model, self.num_heads * d_v, device=self.device, dtype=self.dtype)
+        self.Wo = Linear(self.num_heads * d_v, self.d_model, device=self.device, dtype=self.dtype)
         if theta is not None and max_seq_len is not None:
             self.rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len, self.device)
         else:
@@ -50,7 +50,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
         if self.rope is not None and token_positions is not None:
             q = self.rope(q, token_positions)
             k = self.rope(k, token_positions)
-        causal_mask = torch.tril(torch.ones(n, m, dtype=torch.bool))
+        causal_mask = torch.tril(torch.ones(n, m, device=x.device, dtype=torch.bool)) # device 跟随 x
         heads = scaled_dot_product_attention(q=q, k=k, v=v, mask=causal_mask)  # (..., h, seq, d_v)
         heads = rearrange(heads, "... h seq d_v -> ... seq (h d_v)", h=self.num_heads)
 

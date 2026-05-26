@@ -15,25 +15,25 @@ class AdamW(torch.optim.Optimizer):
                 if p.grad is None:
                     continue
 
-            eps = group['eps']
-            weight_decay = group['weight_decay']
-            state = self.state[p]
-            alpha = group['lr']
-            beta1, beta2 = group['betas']
-            m = state.get('m_t', torch.zeros_like(p.data))
-            v = state.get('v_t', torch.zeros_like(p.data))
-            t = state.get('t', 1)
-            beta1_pow = state.get('beta1_t', beta1)
-            beta2_pow = state.get('beta2_t', beta2)
-            g = p.grad.data
-            alpha_t = alpha * math.sqrt(1 - beta2_pow) / (1 - beta1_pow)
-            p.data -= alpha * weight_decay * p.data
-            m = beta1 * m + (1 - beta1) * g
-            v = beta2 * v + (1 - beta2) * g * g
-            p.data -= alpha_t * m / (torch.sqrt(v) + eps)
-            state['m_t'] = m
-            state['v_t'] = v
-            state['beta1_t'] = beta1_pow * beta1
-            state['beta2_t'] = beta2_pow * beta2
-            state['t'] = t + 1
+                eps = group['eps']
+                weight_decay = group['weight_decay']
+                state = self.state[p]
+                alpha = group['lr']
+                beta1, beta2 = group['betas']
+                m = state.get('m_t', torch.zeros_like(p.data))
+                v = state.get('v_t', torch.zeros_like(p.data))
+                t = state.get('t', 1)
+                beta1_pow = state.get('beta1_t', beta1)
+                beta2_pow = state.get('beta2_t', beta2)
+                g = p.grad.data
+                alpha_t = alpha * math.sqrt(1 - beta2_pow) / (1 - beta1_pow)
+                p.data -= alpha * weight_decay * p.data
+                m = beta1 * m + (1 - beta1) * g
+                v = beta2 * v + (1 - beta2) * g * g
+                p.data -= alpha_t * m / (torch.sqrt(v) + eps)
+                state['m_t'] = m
+                state['v_t'] = v
+                state['beta1_t'] = beta1_pow * beta1
+                state['beta2_t'] = beta2_pow * beta2
+                state['t'] = t + 1
         return loss

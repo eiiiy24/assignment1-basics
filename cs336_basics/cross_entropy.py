@@ -10,5 +10,5 @@ def cross_entropy(
     '''
     batch_size = targets.size(0)
     log_Z = logsumexp(predicted_logits, dim=-1) # (batch_size, )
-    log_p = predicted_logits[torch.arange(batch_size), targets] # (batch_size, )
+    log_p = predicted_logits[torch.arange(batch_size, device=predicted_logits.device), targets] # (batch_size, )
     return (log_Z - log_p).mean() # scalar

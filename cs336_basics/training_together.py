@@ -32,7 +32,10 @@ alpha_max = 5e-3
 alpha_min = 0.0
 T_w = 0.1 * total_steps
 T_c = total_steps
-wandb.init(project="cs336", config={
+wandb.init(
+    project="cs336",
+    name="ts_fixed_lr5e-3_b24_T256_43M",
+    config={
       "vocab_size": vocab_size,
       "context_length": context_length,
       "d_model": d_model,
@@ -54,7 +57,7 @@ wandb.init(project="cs336", config={
 
 model = TransformerLM(d_model, num_heads, d_ff, rope_theta, vocab_size, context_length, num_layers, \
                       device=device, dtype=dtype)
-optimizer = AdamW(model.parameters(), lr=alpha_max, betas=betas)
+optimizer = AdamW(model.parameters(), lr=alpha_max, betas=betas, eps=eps, weight_decay=weight_decay)
 train_dataset = np.load(str(PROJECT_DIR / "output" / "ts_train_ids.npy"), mmap_mode='r')
 valid_dataset = np.load(str(PROJECT_DIR / "output" / "ts_valid_ids.npy"), mmap_mode='r')
 
@@ -86,7 +89,10 @@ for step in pbar:
         wandb.log({"val/loss": val_loss, "step": step})
         save_checkpoint(model, optimizer, step, str(PROJECT_DIR /  "checkpoint" / f"checkpoint_{step}.pt"))
         # 只保留最近 5 个
-        all_ckpts = sorted(PROJECT_DIR.glob("checkpoint/checkpoint_*.pt"))
+        all_ckpts = sorted(
+            PROJECT_DIR.glob("checkpoint/checkpoint_*.pt"),
+            key=lambda p: int(p.stem.split("_")[-1]),
+        )
         for old in all_ckpts[:-5]:
             old.unlink()
         model.train()
