@@ -21,6 +21,7 @@ class TransformerLM(torch.nn.Module):
         context_length: int, # The maximum context length, necessary for determining the dimensionality of the RoPE sin and cos buffer
         num_layers: int, # The number of Transformer blocks to use
         use_norm: bool = True,  # Set False for RMSNorm ablation
+        norm_position: str = "pre",  # "pre" or "post"
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -33,11 +34,12 @@ class TransformerLM(torch.nn.Module):
         self.context_length = context_length
         self.num_layers = num_layers
         self.use_norm = use_norm
+        self.norm_position = norm_position
         self.device = device
         self.dtype = dtype
         self.emd = Embedding(self.vocab_size, self.d_model, device=self.device, dtype=self.dtype)
         self.blocks = torch.nn.ModuleList([
-            TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.rope_theta, self.context_length, use_norm=self.use_norm, device=self.device, dtype=self.dtype) for _ in range(self.num_layers)
+            TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.rope_theta, self.context_length, use_norm=self.use_norm, norm_position=self.norm_position, device=self.device, dtype=self.dtype) for _ in range(self.num_layers)
         ])
         if self.use_norm:
             self.norm = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)

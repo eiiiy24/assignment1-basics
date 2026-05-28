@@ -21,6 +21,7 @@ class TransformerBlock(torch.nn.Module):
         theta: float | None = None,
         max_seq_len: int | None=None,
         use_norm: bool = True,  # Set False for RMSNorm ablation
+        norm_position: str = "pre",  # "pre" or "post"
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -31,6 +32,7 @@ class TransformerBlock(torch.nn.Module):
         self.theta = theta
         self.max_seq_len = max_seq_len
         self.use_norm = use_norm
+        self.norm_position = norm_position
         self.device = device
         self.dtype = dtype
         self.attn = MultiHeadSelfAttention(self.d_model, self.num_heads, self.theta, self.max_seq_len, device=self.device, dtype=self.dtype)
@@ -40,16 +42,26 @@ class TransformerBlock(torch.nn.Module):
         self.ffn = SwiGLU(self.d_model, self.d_ff, device=self.device, dtype=self.dtype)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None=None) -> torch.Tensor:
-        x_temp = x
-        x = self.ln1(x) if self.use_norm else x
         if token_positions is None:
             seq_len = x.shape[-2]
             token_positions = torch.arange(seq_len, device=x.device)
-        x = self.attn(x, token_positions)
-        x = x + x_temp
-        x_temp = x
-        x = self.ln2(x) if self.use_norm else x
-        x = self.ffn(x)
-        x = x + x_temp
-        return x
-
+        if self.norm_position == "pre":
+            x_temp = x
+            x = self.ln1(x) if self.use_norm else x
+            x = self.attn(x, token_positions)
+            x = x + x_temp
+            x_temp = x
+            x = self.ln2(x) if self.use_norm else x
+            x = self.ffn(x)
+            x = x + x_temp
+            return x
+        else: # post-norm
+            x_temp = x
+            x = self.attn(x, token_positions)
+            x = x + x_temp
+            x = self.ln1(x) if self.use_norm else x
+            x_temp = x
+            x = self.ffn(x)
+            x = x + x_temp
+            x = self.ln2(x) if self.use_norm else x
+            return x
