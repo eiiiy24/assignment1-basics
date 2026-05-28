@@ -20,6 +20,7 @@ class TransformerLM(torch.nn.Module):
         vocab_size: int, # The size of the vocabulary, necessary for determining the dimensionality of the token embedding matrix
         context_length: int, # The maximum context length, necessary for determining the dimensionality of the RoPE sin and cos buffer
         num_layers: int, # The number of Transformer blocks to use
+        use_norm: bool = True,  # Set False for RMSNorm ablation
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -31,19 +32,21 @@ class TransformerLM(torch.nn.Module):
         self.vocab_size = vocab_size
         self.context_length = context_length
         self.num_layers = num_layers
+        self.use_norm = use_norm
         self.device = device
         self.dtype = dtype
         self.emd = Embedding(self.vocab_size, self.d_model, device=self.device, dtype=self.dtype)
         self.blocks = torch.nn.ModuleList([
-            TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.rope_theta, self.context_length, device=self.device, dtype=self.dtype) for _ in range(self.num_layers)
+            TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.rope_theta, self.context_length, use_norm=self.use_norm, device=self.device, dtype=self.dtype) for _ in range(self.num_layers)
         ])
-        self.norm = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
+        if self.use_norm:
+            self.norm = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
         self.linear = Linear(self.d_model, self.vocab_size, device=self.device, dtype=self.dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.emd(x)
         for block in self.blocks:
             x = block(x)
-        x = self.norm(x)
+        x = self.norm(x) if self.use_norm else x
         x = self.linear(x)
         return x

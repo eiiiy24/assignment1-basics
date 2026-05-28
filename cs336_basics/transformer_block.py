@@ -20,6 +20,7 @@ class TransformerBlock(torch.nn.Module):
         d_ff: int, # Dimensionality of the position-wise feed-forward inner layer
         theta: float | None = None,
         max_seq_len: int | None=None,
+        use_norm: bool = True,  # Set False for RMSNorm ablation
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -29,23 +30,25 @@ class TransformerBlock(torch.nn.Module):
         self.d_ff = d_ff
         self.theta = theta
         self.max_seq_len = max_seq_len
+        self.use_norm = use_norm
         self.device = device
         self.dtype = dtype
         self.attn = MultiHeadSelfAttention(self.d_model, self.num_heads, self.theta, self.max_seq_len, device=self.device, dtype=self.dtype)
-        self.ln1 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
-        self.ln2 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
+        if self.use_norm:
+            self.ln1 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
+            self.ln2 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
         self.ffn = SwiGLU(self.d_model, self.d_ff, device=self.device, dtype=self.dtype)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None=None) -> torch.Tensor:
         x_temp = x
-        x = self.ln1(x)
+        x = self.ln1(x) if self.use_norm else x
         if token_positions is None:
             seq_len = x.shape[-2]
             token_positions = torch.arange(seq_len, device=x.device)
         x = self.attn(x, token_positions)
         x = x + x_temp
         x_temp = x
-        x = self.ln2(x)
+        x = self.ln2(x) if self.use_norm else x
         x = self.ffn(x)
         x = x + x_temp
         return x
