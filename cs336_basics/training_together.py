@@ -26,14 +26,14 @@ num_heads = 16
 betas = (0.9, 0.95)
 eps = 1e-8
 weight_decay = 0.1
-total_steps = 7000
-batch_size = 24
+total_steps = 40000
+batch_size = 32
 max_norm = 1.0
-alpha_max = 5e-3
+alpha_max = 2e-3
 alpha_min = 0.0
 T_w = 0.1 * total_steps
 T_c = total_steps
-run_name = "ts_fixed_lr5e-3_b24_T256_43M"
+run_name = "ts_lr2e-3_b32_T256_327M"
 wandb.init(
     project="cs336",
     name=run_name,
@@ -61,6 +61,7 @@ wandb.init(
 
 model = TransformerLM(d_model, num_heads, d_ff, rope_theta, vocab_size, context_length, num_layers, \
                       device=device, dtype=dtype)
+model = torch.compile(model)
 optimizer = AdamW(model.parameters(), lr=alpha_max, betas=betas, eps=eps, weight_decay=weight_decay)
 train_dataset = np.load(str(PROJECT_DIR / "output" / "ts_train_ids.npy"), mmap_mode='r')
 valid_dataset = np.load(str(PROJECT_DIR / "output" / "ts_valid_ids.npy"), mmap_mode='r')
