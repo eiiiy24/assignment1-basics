@@ -19,7 +19,7 @@ dtype = torch.float32
 vocab_size = 10_000
 context_length = 256
 d_model = 512
-d_ff = 1344
+d_ff = 4 * d_model
 rope_theta = 10_000
 num_layers = 4
 num_heads = 16
@@ -33,10 +33,10 @@ alpha_max = 2e-3
 alpha_min = 0.0
 T_w = 0.1 * total_steps
 T_c = total_steps
-run_name = "ablation_nope_lr2e-3"
+run_name = "ablation_silu_lr2e-3"
 wandb.init(
     project="cs336",
-    group="ablation_nope",
+    group="ablation_swiglu",
     name=run_name,
     config={
         "vocab_size": vocab_size,
@@ -61,7 +61,7 @@ wandb.init(
     })
 
 model = TransformerLM(d_model, num_heads, d_ff, rope_theta, vocab_size, context_length, num_layers, \
-                      use_rope=False, device=device, dtype=dtype)
+                      use_gate=False, device=device, dtype=dtype)
 model = torch.compile(model)
 optimizer = AdamW(model.parameters(), lr=alpha_max, betas=betas, eps=eps, weight_decay=weight_decay)
 train_dataset = np.load(str(PROJECT_DIR / "output" / "ts_train_ids.npy"), mmap_mode='r')

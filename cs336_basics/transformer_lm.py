@@ -23,6 +23,7 @@ class TransformerLM(torch.nn.Module):
         use_norm: bool = True,  # Set False for RMSNorm ablation
         norm_position: str = "pre",  # "pre" or "post"
         use_rope: bool = True,  # Set False for NoPE ablation
+        use_gate: bool = True,  # Set False for GLU ablation
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -37,11 +38,24 @@ class TransformerLM(torch.nn.Module):
         self.use_norm = use_norm
         self.norm_position = norm_position
         self.use_rope = use_rope
+        self.use_gate = use_gate
         self.device = device
         self.dtype = dtype
         self.emd = Embedding(self.vocab_size, self.d_model, device=self.device, dtype=self.dtype)
         self.blocks = torch.nn.ModuleList([
-            TransformerBlock(self.d_model, self.num_heads, self.d_ff, self.rope_theta, self.context_length, use_norm=self.use_norm, norm_position=self.norm_position, use_rope=self.use_rope, device=self.device, dtype=self.dtype) for _ in range(self.num_layers)
+            TransformerBlock(
+                self.d_model,
+                self.num_heads, 
+                self.d_ff,
+                self.rope_theta,
+                self.context_length,
+                use_norm=self.use_norm,
+                norm_position=self.norm_position,
+                use_rope=self.use_rope,
+                use_gate=self.use_gate,
+                device=self.device,
+                dtype=self.dtype)
+            for _ in range(self.num_layers)
         ])
         if self.use_norm:
             self.norm = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
