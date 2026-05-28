@@ -33,10 +33,10 @@ alpha_max = 2e-3
 alpha_min = 0.0
 T_w = 0.1 * total_steps
 T_c = total_steps
-run_name = "ablation_post_norm_lr2e-3"
+run_name = "ablation_nope_lr2e-3"
 wandb.init(
     project="cs336",
-    group="ablation_norm_position",
+    group="ablation_nope",
     name=run_name,
     config={
         "vocab_size": vocab_size,
@@ -61,7 +61,7 @@ wandb.init(
     })
 
 model = TransformerLM(d_model, num_heads, d_ff, rope_theta, vocab_size, context_length, num_layers, \
-                      norm_position="post", device=device, dtype=dtype)
+                      use_rope=False, device=device, dtype=dtype)
 model = torch.compile(model)
 optimizer = AdamW(model.parameters(), lr=alpha_max, betas=betas, eps=eps, weight_decay=weight_decay)
 train_dataset = np.load(str(PROJECT_DIR / "output" / "ts_train_ids.npy"), mmap_mode='r')

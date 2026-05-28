@@ -22,6 +22,7 @@ class TransformerBlock(torch.nn.Module):
         max_seq_len: int | None=None,
         use_norm: bool = True,  # Set False for RMSNorm ablation
         norm_position: str = "pre",  # "pre" or "post"
+        use_rope: bool = True,  # Set False for NoPE ablation
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
@@ -33,9 +34,10 @@ class TransformerBlock(torch.nn.Module):
         self.max_seq_len = max_seq_len
         self.use_norm = use_norm
         self.norm_position = norm_position
+        self.use_rope = use_rope
         self.device = device
         self.dtype = dtype
-        self.attn = MultiHeadSelfAttention(self.d_model, self.num_heads, self.theta, self.max_seq_len, device=self.device, dtype=self.dtype)
+        self.attn = MultiHeadSelfAttention(self.d_model, self.num_heads, self.theta, self.max_seq_len, self.use_rope, device=self.device, dtype=self.dtype)
         if self.use_norm:
             self.ln1 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)
             self.ln2 = RMSNorm(self.d_model, device=self.device, dtype=self.dtype)

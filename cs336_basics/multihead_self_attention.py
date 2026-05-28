@@ -18,12 +18,14 @@ class MultiHeadSelfAttention(torch.nn.Module):
         num_heads: int, # Number of heads to use in multi-head self-attention
         theta: float | None=None,
         max_seq_len: int | None=None,
+        use_rope: bool = True,  # Set False for NoPE ablation
         device: torch.device | None=None,
         dtype: torch.dtype | None=None,
     ):
         super(MultiHeadSelfAttention, self).__init__()
         self.d_model = d_model
         self.num_heads = num_heads
+        self.use_rope = use_rope
         self.device = device
         self.dtype = dtype
         d_k = d_v = self.d_model // self.num_heads
@@ -31,8 +33,11 @@ class MultiHeadSelfAttention(torch.nn.Module):
         self.Wk = Linear(self.d_model, self.num_heads * d_k, device=self.device, dtype=self.dtype)
         self.Wv = Linear(self.d_model, self.num_heads * d_v, device=self.device, dtype=self.dtype)
         self.Wo = Linear(self.num_heads * d_v, self.d_model, device=self.device, dtype=self.dtype)
-        if theta is not None and max_seq_len is not None:
-            self.rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len, self.device)
+        if self.use_rope:
+            if theta is not None and max_seq_len is not None:
+                self.rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len, self.device)
+            else:
+                self.rope = None
         else:
             self.rope = None
 
