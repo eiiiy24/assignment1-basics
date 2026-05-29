@@ -20,13 +20,13 @@ num_heads = 16
 model = TransformerLM(d_model, num_heads, d_ff, rope_theta, vocab_size, context_length, num_layers,\
                       device=device, dtype=dtype)
 optimizer = AdamW(model.parameters())
-state = load_checkpoint(str(PROJECT_DIR / 'checkpoint' / 'checkpoint_7000.pt'), model, optimizer)
+state = load_checkpoint(str(PROJECT_DIR / 'runs/ts_lr2e-3_b32_T256_327M/checkpoints' / 'checkpoint_40000.pt'), model, optimizer)
 tokenizer = Tokenizer.from_files(
     str(PROJECT_DIR / 'output' / 'tinystories_vocab.json'),
     str(PROJECT_DIR / 'output' / 'tinystories_merges.json'),
     ["<|endoftext|>"]
 )
 
-prompt = "I have a friend, Tim"
+prompt = "Once upon a time"
 text = decode(model, tokenizer, prompt, max_tokens_num=256, temperature=0.5, top_p=0.95)
-print(text)
+print(prompt + text)

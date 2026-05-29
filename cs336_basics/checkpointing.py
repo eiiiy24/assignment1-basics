@@ -18,8 +18,8 @@ def load_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
 ):
-    checkpoint = torch.load(src)
-    weights = checkpoint['weights']
+    checkpoint = torch.load(src, map_location='cpu')
+    weights = {k.replace('_orig_mod.', ''): v for k, v in checkpoint['weights'].items()}
     state = checkpoint['state']
     iteration = checkpoint['iteration']
     model.load_state_dict(weights)
